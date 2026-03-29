@@ -1,0 +1,101 @@
+# Proxy Service (API Gateway) — единая точка входа, реализует паттерн Strangler Fig
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: proxy-service
+  namespace: cinemaabyss
+  labels:
+    app: proxy-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: proxy-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: proxy-service
+    spec:
+      containers:
+      - name: proxy-service
+        # Образ из GitHub Container Registry — замените на свой путь
+        image: ghcr.io/dmitriyv003/yandex-practicum-cinema/proxy-service:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8000
+        env:
+        # Порт, на котором слушает proxy
+        - name: PORT
+          value: "8000"
+        # URL монолита — все запросы /api/users, /api/payments, /api/subscriptions уходят сюда
+        - name: MONOLITH_URL
+          valueFrom:
+            configMapKeyRef:
+              name: cinemaabyss-config
+              key: MONOLITH_URL
+        # URL movies-сервиса — /api/movies может уходить сюда (зависит от % миграции)
+        - name: MOVIES_SERVICE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: cinemaabyss-config
+              key: MOVIES_SERVICE_URL
+        # URL events-сервиса — все /api/events/* проксируются сюда
+        - name: EVENTS_SERVICE_URL
+          value: "http://events-service:8082"
+        # Флаг включения постепенной миграции (true/false)
+        - name: GRADUAL_MIGRATION
+          valueFrom:
+            configMapKeyRef:
+              name: cinemaabyss-config
+              key: GRADUAL_MIGRATION
+        # Процент запросов /api/movies, направляемых в movies-сервис вместо монолита
+        - name: MOVIES_MIGRATION_PERCENT
+          valueFrom:
+            configMapKeyRef:
+              name: cinemaabyss-config
+              key: MOVIES_MIGRATION_PERCENT
+        resources:
+          limits:
+            cpu: "300m"
+            memory: "256Mi"
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+        # Проверка готовности — K8s не направляет трафик, пока /health не ответит 200
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        # Проверка живости — K8s перезапускает под, если /health перестал отвечать
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 20
+      restartPolicy: Always
+      # Секрет для аутентификации в ghcr.io
+      imagePullSecrets:
+        - name: dockerconfigjson
+---
+# Service — внутренний DNS-адрес proxy-service:8000
+# Ingress будет направлять внешний трафик сюда
+apiVersion: v1
+kind: Service
+metadata:
+  name: proxy-service
+  namespace: cinemaabyss
+spec:
+  selector:
+    app: proxy-service
+  ports:
+  - port: 8000
+    targetPort: 8000
+  type: ClusterIP

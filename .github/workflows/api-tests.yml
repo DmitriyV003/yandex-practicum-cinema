@@ -1,10 +1,11 @@
 name: API Tests
 
+# Запуск тестов при пуше/PR в main, master или cinema
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main, master, cinema ]
   pull_request:
-    branches: [ main, master ]
+    branches: [ main, master, cinema ]
   workflow_dispatch:
     inputs:
       environment:
