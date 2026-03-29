@@ -23,7 +23,7 @@ spec:
       containers:
       - name: movies-service
         image: ghcr.io/dmitriyv003/yandex-practicum-cinema/movies-service:latest
-        imagePullPolicy: Always
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8081
         env:
