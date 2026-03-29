@@ -1,0 +1,47 @@
+@startuml C4_Container_Diagram
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+LAYOUT_WITH_LEGEND()
+LAYOUT_TOP_DOWN()
+
+title Container Diagram - CinemaAbyss (To-Be Architecture)
+
+Person(user, "Пользователь", "Клиент стриминговой платформы КиноБездна")
+
+System_Boundary(cinemaabyss, "CinemaAbyss Platform") {
+
+    Container(proxy, "API Gateway / Proxy Service", "Go, Port 8000", "Единая точка входа. Маршрутизация запросов между монолитом и микросервисами. Реализует паттерн Strangler Fig с процентным переключением трафика (feature flag)")
+
+    Container(monolith, "Monolith", "Go, Port 8080", "Исходное монолитное приложение. Домены: Users, Payments, Subscriptions. Постепенно замещается микросервисами")
+
+    Container(movies_service, "Movies Service", "Go, Port 8081", "Микросервис метаданных фильмов. Домен: Movies (CRUD, жанры, рейтинги). Извлечён из монолита")
+
+    Container(events_service, "Events Service", "Go, Port 8082", "Микросервис обработки событий. Kafka Producer/Consumer. Обрабатывает события: movie, user, payment")
+
+    ContainerDb(postgres, "PostgreSQL", "PostgreSQL 14", "Реляционная БД. Таблицы: users, movies, movie_genres, payments, subscriptions, views, user_ratings")
+
+    ContainerQueue(kafka, "Apache Kafka", "Kafka 2.13", "Брокер сообщений. Топики: movie-events, user-events, payment-events")
+
+    Container(kafka_ui, "Kafka UI", "Web UI, Port 8090", "Мониторинг топиков и сообщений Kafka")
+}
+
+System_Ext(ghcr, "GitHub Container Registry", "Хранение Docker-образов сервисов")
+System_Ext(github_actions, "GitHub Actions", "CI/CD: сборка, тестирование, публикация образов")
+
+' Relationships
+Rel_D(user, proxy, "HTTP запросы", "REST API")
+
+Rel_D(proxy, monolith, "Проксирует запросы", "/api/users, /api/payments, /api/subscriptions")
+Rel_D(proxy, movies_service, "Проксирует запросы", "/api/movies (% трафика)")
+Rel_D(proxy, events_service, "Проксирует запросы", "/api/events/*")
+
+Rel_D(monolith, postgres, "Читает/Записывает", "SQL")
+Rel_D(movies_service, postgres, "Читает/Записывает", "SQL")
+
+Rel_D(events_service, kafka, "Публикует/Потребляет", "movie-events, user-events, payment-events")
+
+Rel(kafka_ui, kafka, "Мониторинг", "HTTP")
+
+Rel_U(github_actions, ghcr, "Push Docker images")
+
+@enduml
