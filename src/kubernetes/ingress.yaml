@@ -1,5 +1,4 @@
 # Ingress — маршрутизация внешнего трафика к сервисам внутри кластера
-# Хост: cinemaabyss.example.com (нужно добавить в /etc/hosts → 127.0.0.1)
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
