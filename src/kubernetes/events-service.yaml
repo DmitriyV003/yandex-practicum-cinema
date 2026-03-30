@@ -1,0 +1,76 @@
+# Events Service — Kafka producer/consumer для обработки событий (movie, user, payment)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: events-service
+  namespace: cinemaabyss
+  labels:
+    app: events-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: events-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: events-service
+    spec:
+      containers:
+      - name: events-service
+        # Образ из GitHub Container Registry — замените на свой путь
+        image: ghcr.io/dmitriyv003/yandex-practicum-cinema/events-service:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8082
+        env:
+        # Порт, на котором слушает сервис
+        - name: PORT
+          value: "8082"
+        # Адрес Kafka-брокера внутри кластера K8s
+        - name: KAFKA_BROKERS
+          value: "kafka:9092"
+        resources:
+          limits:
+            cpu: "300m"
+            memory: "256Mi"
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+        # Проверка готовности — K8s не направляет трафик, пока health не ответит 200
+        readinessProbe:
+          httpGet:
+            path: /api/events/health
+            port: 8082
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        # Проверка живости — K8s перезапускает под, если health перестал отвечать
+        livenessProbe:
+          httpGet:
+            path: /api/events/health
+            port: 8082
+          initialDelaySeconds: 15
+          periodSeconds: 20
+      restartPolicy: Always
+      # Секрет для аутентификации в ghcr.io (подтягивает образ из приватного registry)
+      imagePullSecrets:
+        - name: dockerconfigjson
+---
+# Service — внутренний DNS-адрес events-service:8082 для других подов
+apiVersion: v1
+kind: Service
+metadata:
+  name: events-service
+  namespace: cinemaabyss
+spec:
+  selector:
+    app: events-service
+  ports:
+  - port: 8082
+    targetPort: 8082
+  type: ClusterIP

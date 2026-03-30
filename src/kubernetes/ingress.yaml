@@ -1,3 +1,4 @@
+# Ingress — маршрутизация внешнего трафика к сервисам внутри кластера
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -11,8 +12,8 @@ spec:
     - host: cinemaabyss.example.com
       http:
         paths:
-          #дополните конфигурацию для /
-          ...
+          # /api/events/* — напрямую в events-service (минуя proxy)
+          # Это нужно, чтобы тесты на K8s могли обращаться к events-service напрямую
           - path: /api/events
             pathType: Prefix
             backend:
@@ -20,3 +21,12 @@ spec:
                 name: events-service
                 port:
                   number: 8082
+          # / — всё остальное через API Gateway (proxy-service)
+          # Proxy сам решает, куда направить: монолит, movies-service или events-service
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: proxy-service
+                port:
+                  number: 8000
