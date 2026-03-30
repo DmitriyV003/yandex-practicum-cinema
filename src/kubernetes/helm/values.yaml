@@ -35,7 +35,7 @@ monolith:
   image:
     repository: ghcr.io/dmitriyv003/yandex-practicum-cinema/monolith
     tag: latest
-    pullPolicy: Always
+    pullPolicy: IfNotPresent
   replicas: 1
   resources:
     limits:
@@ -55,7 +55,7 @@ proxyService:
   image:
     repository: ghcr.io/dmitriyv003/yandex-practicum-cinema/proxy-service
     tag: latest
-    pullPolicy: Always
+    pullPolicy: IfNotPresent
   replicas: 1
   resources:
     limits:
@@ -75,7 +75,7 @@ moviesService:
   image:
     repository: ghcr.io/dmitriyv003/yandex-practicum-cinema/movies-service
     tag: latest
-    pullPolicy: Always
+    pullPolicy: IfNotPresent
   replicas: 1
   resources:
     limits:
@@ -95,7 +95,7 @@ eventsService:
   image:
     repository: ghcr.io/dmitriyv003/yandex-practicum-cinema/events-service
     tag: latest
-    pullPolicy: Always
+    pullPolicy: IfNotPresent
   replicas: 1
   resources:
     limits:
